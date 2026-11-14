@@ -25,20 +25,18 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: 'latest'
 
       - name: Install Android SDK packages
         shell: bash
         run: |
-          set -euo pipefail
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1)"
+          set -euxo pipefail
+          SDK_ROOT="${ANDROID_HOME:-$HOME/.android}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1 || true)"
           if [ -z "$SDKMANAGER" ]; then
-            echo "ERROR: sdkmanager tidak ditemukan di $ANDROID_HOME/cmdline-tools"
-            find "$ANDROID_HOME" -maxdepth 5 -type f -name sdkmanager 2>/dev/null || true
+            echo "sdkmanager not found under $SDK_ROOT"
+            find /usr/local/lib/android -type f -name sdkmanager -print 2>/dev/null || true
             exit 1
           fi
-          echo "Menggunakan: $SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
 
@@ -50,24 +48,21 @@ jobs:
       - name: Extract Android project
         shell: bash
         run: |
-          set -euo pipefail
+          set -euxo pipefail
           test -f source-project.zip
           mkdir -p app-source
           unzip -q source-project.zip -d app-source
           test -f app-source/settings.gradle
           test -f app-source/app/build.gradle
-          echo "Project Android ditemukan."
 
       - name: Build debug APK
         working-directory: app-source
         run: gradle assembleDebug --stacktrace
 
       - name: Verify APK
-        run: |
-          test -s app-source/app/build/outputs/apk/debug/app-debug.apk
-          ls -lh app-source/app/build/outputs/apk/debug/app-debug.apk
+        run: test -s app-source/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload installable APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: FB-Reels-Viewer-Pro-APK
